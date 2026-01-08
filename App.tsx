@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { Mic, MicOff, Volume2, Sparkles, AlertCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Mic, MicOff, Volume2, Sparkles, AlertCircle, Settings as SettingsIcon, PhoneOff } from 'lucide-react';
 import { Language, ASTROLOGER_PROMPT, User } from './types';
 import { createPcmBlob, base64ToUint8Array, decodeAudioData } from './utils/audio';
 import CrystalBall from './components/CrystalBall';
@@ -12,8 +12,10 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(Language.English);
   const [isConnected, setIsConnected] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false); // True if AI is speaking
+  const [interruptionFeedback, setInterruptionFeedback] = useState(false); // Visual feedback for interruption
   
   // Refs for Audio Contexts and Processing
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -22,6 +24,7 @@ const App: React.FC = () => {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const isMutedRef = useRef(false); // Ref to access inside closures
   
   // Ref to track audio scheduling
   const nextStartTimeRef = useRef<number>(0);
@@ -46,6 +49,8 @@ const App: React.FC = () => {
   const cleanup = useCallback(() => {
     setIsConnected(false);
     setIsSpeaking(false);
+    setIsMuted(false);
+    isMutedRef.current = false;
     
     // Stop all playing audio sources
     audioQueueRef.current.forEach(source => {
@@ -92,8 +97,6 @@ const App: React.FC = () => {
       inputAudioContextRef.current.close();
       inputAudioContextRef.current = null;
     }
-    // Note: We typically keep output context alive or re-create it on demand, 
-    // but for full reset we can close it.
     if (outputAudioContextRef.current) {
       outputAudioContextRef.current.close();
       outputAudioContextRef.current = null;
@@ -104,8 +107,16 @@ const App: React.FC = () => {
     currentOutputTranscription.current = '';
   }, []);
 
+  const handleToggleMute = () => {
+    const newState = !isMuted;
+    setIsMuted(newState);
+    isMutedRef.current = newState;
+  };
+
   const handleConnect = async () => {
     setError(null);
+    setIsMuted(false);
+    isMutedRef.current = false;
     
     // Ensure clean state before starting
     cleanup();
@@ -115,6 +126,14 @@ const App: React.FC = () => {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
       outputAudioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+
+      // Resume contexts immediately (fixes Safari/Mobile autoplay policies)
+      if (inputAudioContextRef.current.state === 'suspended') {
+          await inputAudioContextRef.current.resume();
+      }
+      if (outputAudioContextRef.current.state === 'suspended') {
+          await outputAudioContextRef.current.resume();
+      }
 
       // Analyser for Visualization
       analyserRef.current = outputAudioContextRef.current.createAnalyser();
@@ -130,7 +149,7 @@ const App: React.FC = () => {
       // Load History
       const historyKey = user ? `celestial_history_${user.id}` : 'celestial_history_guest';
       let savedHistory = localStorage.getItem(historyKey) || '';
-      // Truncate history if it gets too long (approx 20k chars) to fit in context
+      // Truncate history if it gets too long
       if (savedHistory.length > 20000) {
         savedHistory = savedHistory.slice(savedHistory.length - 20000);
         const firstNewLine = savedHistory.indexOf('\n');
@@ -163,11 +182,6 @@ const App: React.FC = () => {
             ${ASTROLOGER_PROMPT}
 
             === MEMORY & CONTEXT ===
-            The following is a transcript of the past conversation(s) with this user. 
-            Use it to remember their details (name, birth date, place, signs) and previous predictions.
-            Ensure consistency. Do not ask for information they have already provided in the history below, unless you need to confirm it.
-            Do not contradict previous readings unless the user corrects you.
-
             HISTORY:
             ${savedHistory}
           `,
@@ -277,9 +291,9 @@ const App: React.FC = () => {
               nextStartTimeRef.current = 0;
               setIsSpeaking(false);
               
-              // Note: We don't clear transcription accumulators here necessarily, 
-              // as the partial text might still be valid context, but often interruption means cancel.
-              // We'll leave them to be handled by turnComplete or next input.
+              // Trigger visual feedback
+              setInterruptionFeedback(true);
+              setTimeout(() => setInterruptionFeedback(false), 2000);
             }
           },
           onclose: () => {
@@ -304,6 +318,10 @@ const App: React.FC = () => {
       processorRef.current = inputCtx.createScriptProcessor(2048, 1, 1);
       
       processorRef.current.onaudioprocess = (e) => {
+        // CRITICAL: If muted, do NOT process or send audio.
+        // This prevents background noise from triggering an interruption.
+        if (isMutedRef.current) return;
+
         const inputData = e.inputBuffer.getChannelData(0);
         // Create 16-bit PCM Blob
         const pcmBlob = createPcmBlob(inputData);
@@ -434,12 +452,21 @@ const App: React.FC = () => {
            <CrystalBall 
              analyser={analyserRef.current} 
              isConnected={isConnected} 
-             isSpeaking={isSpeaking} 
+             isSpeaking={isSpeaking}
+             isMuted={isMuted} 
            />
            {isConnected && (
-             <div className="absolute -bottom-4 text-center">
-                <span className={`text-xs font-serif tracking-widest ${isSpeaking ? 'text-yellow-200' : 'text-purple-300 animate-pulse'}`}>
-                    {isSpeaking ? 'THE STARS ARE SPEAKING...' : 'LISTENING TO YOUR AURA...'}
+             <div className="absolute -bottom-4 text-center w-full">
+                <span className={`text-xs font-serif tracking-widest block ${
+                    interruptionFeedback ? 'text-white animate-bounce' :
+                    isMuted ? 'text-red-400' : 
+                    isSpeaking ? 'text-yellow-200' : 
+                    'text-purple-300 animate-pulse'
+                }`}>
+                    {interruptionFeedback ? 'LISTENING...' :
+                     isMuted ? 'MICROPHONE MUTED' : 
+                     isSpeaking ? 'THE STARS ARE SPEAKING...' : 
+                     'LISTENING TO YOUR AURA...'}
                 </span>
              </div>
            )}
@@ -464,13 +491,27 @@ const App: React.FC = () => {
                 <span>Begin Consultation</span>
                 </button>
             ) : (
-                <button
-                onClick={cleanup}
-                className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-slate-800 border border-slate-600 text-slate-300 font-semibold hover:bg-red-900/20 hover:border-red-500/50 hover:text-red-300 transition-all duration-300"
-                >
-                <MicOff className="w-5 h-5" />
-                <span>End Session</span>
-                </button>
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        onClick={handleToggleMute}
+                        className={`flex items-center justify-center gap-2 py-4 rounded-2xl border font-semibold transition-all duration-300 ${
+                            isMuted 
+                                ? 'bg-red-900/50 border-red-500 text-red-100 hover:bg-red-900/70' 
+                                : 'bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white'
+                        }`}
+                    >
+                        {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+                    </button>
+
+                    <button
+                        onClick={cleanup}
+                        className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-slate-800 border border-slate-600 text-red-400 font-semibold hover:bg-red-900/20 hover:border-red-500/50 hover:text-red-300 transition-all duration-300"
+                    >
+                        <PhoneOff className="w-5 h-5" />
+                        <span>End Call</span>
+                    </button>
+                </div>
             )}
         </div>
         

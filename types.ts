@@ -19,6 +19,7 @@ export interface AudioVisualizerProps {
   analyser: AnalyserNode | null;
   isConnected: boolean;
   isSpeaking: boolean;
+  isMuted: boolean;
 }
 
 export const ASTROLOGER_PROMPT = `

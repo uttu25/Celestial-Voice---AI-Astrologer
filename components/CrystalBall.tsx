@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AudioVisualizerProps } from '../types';
 
-const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, isSpeaking }) => {
+const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, isSpeaking, isMuted }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
 
@@ -25,7 +25,7 @@ const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, is
       
       let intensity = 0;
 
-      if (analyser && isConnected) {
+      if (analyser && isConnected && !isMuted) {
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         analyser.getByteFrequencyData(dataArray);
@@ -42,6 +42,11 @@ const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, is
       if (!isConnected) {
         gradient.addColorStop(0, '#334155');
         gradient.addColorStop(1, '#0f172a');
+      } else if (isMuted) {
+         // Muted - Red/Dim
+         gradient.addColorStop(0, 'rgba(239, 68, 68, 0.2)');
+         gradient.addColorStop(0.8, 'rgba(153, 27, 27, 0.1)');
+         gradient.addColorStop(1, 'transparent');
       } else if (isSpeaking) {
         // AI Speaking - Golden/Mystical
         gradient.addColorStop(0, `rgba(253, 224, 71, ${0.4 + (intensity/255)})`);
@@ -60,13 +65,24 @@ const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, is
       ctx.fill();
 
       // Inner Core
-      ctx.fillStyle = isConnected ? (isSpeaking ? '#fef08a' : '#d8b4fe') : '#475569';
+      if (isConnected) {
+          if (isMuted) {
+              ctx.fillStyle = '#7f1d1d'; // Dark Red
+          } else if (isSpeaking) {
+              ctx.fillStyle = '#fef08a'; // Yellow
+          } else {
+              ctx.fillStyle = '#d8b4fe'; // Purple
+          }
+      } else {
+          ctx.fillStyle = '#475569';
+      }
+      
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius * 0.8, 0, Math.PI * 2);
       ctx.fill();
       
       // Sparkles/Stars inside
-      if (isConnected) {
+      if (isConnected && !isMuted) {
          const time = Date.now() / 1000;
          for(let i=0; i<5; i++) {
              const angle = (time + i) * (Math.PI / 2.5);
@@ -91,7 +107,7 @@ const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, is
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [analyser, isConnected, isSpeaking]);
+  }, [analyser, isConnected, isSpeaking, isMuted]);
 
   return (
     <div className="relative flex justify-center items-center h-64 w-64 mx-auto my-8">
@@ -101,7 +117,10 @@ const CrystalBall: React.FC<AudioVisualizerProps> = ({ analyser, isConnected, is
         height={300} 
         className="z-10"
       />
-      <div className={`absolute inset-0 rounded-full blur-3xl transition-opacity duration-1000 ${isConnected ? 'opacity-40' : 'opacity-0'} ${isSpeaking ? 'bg-yellow-500' : 'bg-purple-600'}`}></div>
+      <div className={`absolute inset-0 rounded-full blur-3xl transition-opacity duration-1000 
+        ${isConnected ? 'opacity-40' : 'opacity-0'} 
+        ${isMuted ? 'bg-red-600' : (isSpeaking ? 'bg-yellow-500' : 'bg-purple-600')}
+      `}></div>
     </div>
   );
 };
