@@ -13,6 +13,8 @@ export interface User {
   name: string;
   email: string;
   password: string; // Note: In a real app, never store passwords in plain text!
+  chatCount: number;
+  isPremium: boolean;
 }
 
 export interface AudioVisualizerProps {

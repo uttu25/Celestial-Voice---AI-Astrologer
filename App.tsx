@@ -6,10 +6,12 @@ import { createPcmBlob, base64ToUint8Array, decodeAudioData } from './utils/audi
 import CrystalBall from './components/CrystalBall';
 import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
+import SubscriptionModal from './components/SubscriptionModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(Language.English);
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -107,16 +109,44 @@ const App: React.FC = () => {
     currentOutputTranscription.current = '';
   }, []);
 
+  // Sync user updates to localStorage
+  const persistUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('celestial_currentUser', JSON.stringify(updatedUser));
+    
+    // Also update the main users list
+    const storedUsersStr = localStorage.getItem('celestial_users');
+    if (storedUsersStr) {
+      const users: User[] = JSON.parse(storedUsersStr);
+      const newUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
+      localStorage.setItem('celestial_users', JSON.stringify(newUsers));
+    }
+  };
+
   const handleToggleMute = () => {
     const newState = !isMuted;
     setIsMuted(newState);
     isMutedRef.current = newState;
   };
 
+  const handleSubscribe = () => {
+    if (user) {
+        const updatedUser = { ...user, isPremium: true };
+        persistUser(updatedUser);
+        setShowSubscription(false);
+    }
+  };
+
   const handleConnect = async () => {
     setError(null);
     setIsMuted(false);
     isMutedRef.current = false;
+
+    // FREEMIUM CHECK
+    if (user && !user.isPremium && (user.chatCount ?? 0) >= 3) {
+        setShowSubscription(true);
+        return;
+    }
     
     // Ensure clean state before starting
     cleanup();
@@ -200,6 +230,12 @@ const App: React.FC = () => {
           onopen: () => {
             console.log("Gemini Live Session Opened");
             setIsConnected(true);
+            
+            // INCREMENT USAGE COUNT
+            if (user && !user.isPremium) {
+                const newCount = (user.chatCount ?? 0) + 1;
+                persistUser({ ...user, chatCount: newCount });
+            }
           },
           onmessage: async (message: LiveServerMessage) => {
             const serverContent = message.serverContent;
@@ -357,7 +393,7 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUser = (updatedUser: User) => {
-    setUser(updatedUser);
+    persistUser(updatedUser);
   };
 
   const handleDeleteUser = () => {
@@ -416,6 +452,9 @@ const App: React.FC = () => {
         {!isConnected && (
             <div className="text-center mb-6">
                 <p className="text-slate-300">Welcome, <span className="text-purple-300 font-serif font-bold">{user.name}</span></p>
+                <div className="mt-2 inline-block px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-400">
+                    {user.isPremium ? 'Premium Soul' : `Free Sessions: ${3 - (user.chatCount ?? 0)} Remaining`}
+                </div>
             </div>
         )}
 
@@ -531,6 +570,13 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           onUpdateUser={handleUpdateUser}
           onDeleteUser={handleDeleteUser}
+        />
+      )}
+
+      {showSubscription && (
+        <SubscriptionModal 
+            onSubscribe={handleSubscribe} 
+            onClose={() => setShowSubscription(false)} 
         />
       )}
 

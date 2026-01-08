@@ -29,8 +29,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
     if (isLogin) {
       const user = users.find(u => u.email === email && u.password === password);
       if (user) {
-        localStorage.setItem('celestial_currentUser', JSON.stringify(user));
-        onLogin(user);
+        // Migration for old users who might not have chatCount/isPremium
+        const updatedUser = {
+          ...user,
+          chatCount: user.chatCount ?? 0,
+          isPremium: user.isPremium ?? false
+        };
+        localStorage.setItem('celestial_currentUser', JSON.stringify(updatedUser));
+        onLogin(updatedUser);
       } else {
         setError("Invalid email or password");
       }
@@ -43,7 +49,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
         id: Date.now().toString(),
         name,
         email,
-        password
+        password,
+        chatCount: 0,
+        isPremium: false
       };
       users.push(newUser);
       localStorage.setItem('celestial_users', JSON.stringify(users));

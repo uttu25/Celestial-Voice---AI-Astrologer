@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { X, User as UserIcon, Lock, LogOut, Trash2, CheckCircle, Eraser } from 'lucide-react';
+import { X, User as UserIcon, Lock, LogOut, Trash2, CheckCircle, Eraser, Crown } from 'lucide-react';
 
 interface SettingsModalProps {
   user: User;
@@ -105,6 +105,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {activeTab === 'profile' && (
           <div className="space-y-6">
+            
+            {/* Subscription Status Card */}
+            <div className={`rounded-xl p-4 border ${user.isPremium ? 'bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border-yellow-500/30' : 'bg-slate-800/50 border-slate-700'}`}>
+                <div className="flex justify-between items-start mb-2">
+                    <div className="text-xs text-slate-400 uppercase tracking-wider">Plan Status</div>
+                    {user.isPremium ? (
+                        <Crown className="w-4 h-4 text-yellow-400" />
+                    ) : (
+                        <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">Free</span>
+                    )}
+                </div>
+                <div className={`font-medium text-lg ${user.isPremium ? 'text-yellow-400' : 'text-white'}`}>
+                    {user.isPremium ? 'Premium Soul' : `${user.chatCount ?? 0} / 3 Sessions Used`}
+                </div>
+                {!user.isPremium && (
+                    <div className="mt-2 h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-purple-500 transition-all duration-500" 
+                            style={{width: `${Math.min(100, ((user.chatCount ?? 0) / 3) * 100)}%`}}
+                        ></div>
+                    </div>
+                )}
+            </div>
+
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
               <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Name</div>
               <div className="text-white font-medium">{user.name}</div>
