@@ -1,0 +1,22 @@
+{
+  "short_name": "Celestial Voice",
+  "name": "Celestial Voice - AI Astrologer",
+  "description": "A multilingual AI astrologer that listens to your details and predicts your future.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2647/2647287.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2647/2647287.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#050510",
+  "background_color": "#050510",
+  "orientation": "portrait"
+}

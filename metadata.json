@@ -1,0 +1,7 @@
+{
+  "name": "Celestial Voice - AI Astrologer",
+  "description": "A multilingual AI astrologer that listens to your details and predicts your future.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
