@@ -28,6 +28,32 @@
         background-size: 550px 550px, 350px 350px, 250px 250px;
         background-position: 0 0, 40px 60px, 130px 270px;
       }
+
+      /* Custom Animations */
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+      .animate-shake {
+        animation: shake 0.5s ease-in-out;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+      }
+
+      @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-slow {
+        animation: spin-slow 8s linear infinite;
+      }
     </style>
   <script type="importmap">
 {
@@ -36,7 +62,11 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3"
+    "react": "https://esm.sh/react@^19.2.3",
+    "firebase/app": "https://esm.sh/firebase@10.12.0/app",
+    "firebase/auth": "https://esm.sh/firebase@10.12.0/auth",
+    "firebase/firestore": "https://esm.sh/firebase@10.12.0/firestore",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
   }
 }
 </script>

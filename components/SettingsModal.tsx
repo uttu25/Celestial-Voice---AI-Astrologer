@@ -1,26 +1,51 @@
 import React, { useState } from 'react';
-import { User } from '../types';
-import { X, User as UserIcon, Lock, LogOut, Trash2, CheckCircle, Eraser, Crown } from 'lucide-react';
+import { User, Language } from '../types';
+import { X, User as UserIcon, Lock, LogOut, Trash2, CheckCircle, Eraser, Crown, Edit2, Save, Globe } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 interface SettingsModalProps {
   user: User;
+  currentLanguage: Language;
   onClose: () => void;
   onLogout: () => void;
   onUpdateUser: (updatedUser: User) => void;
   onDeleteUser: () => void;
+  onLanguageChange: (lang: Language) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
   user, 
+  currentLanguage,
   onClose, 
   onLogout, 
   onUpdateUser,
-  onDeleteUser 
+  onDeleteUser,
+  onLanguageChange
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(user.name);
   const [oldPass, setOldPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
+  const handleSaveProfile = async () => {
+    try {
+        // Update in Firestore
+        const userRef = doc(db, "users", user.id);
+        await updateDoc(userRef, { name: editName });
+        
+        // Update local state
+        onUpdateUser({ ...user, name: editName });
+        
+        setIsEditing(false);
+        setMessage({ type: 'success', text: 'Profile updated successfully' });
+    } catch (e) {
+        console.error(e);
+        setMessage({ type: 'error', text: 'Failed to update profile' });
+    }
+  };
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +60,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
     const updatedUser = { ...user, password: newPass };
     
-    // Update local storage
+    // Update local storage simulation for password (in real app, use Firebase Auth updatePassword)
     const storedUsersStr = localStorage.getItem('celestial_users');
     if (storedUsersStr) {
       const users: User[] = JSON.parse(storedUsersStr);
@@ -74,7 +99,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl relative">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
@@ -84,7 +109,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <h2 className="text-xl font-serif text-white mb-6 flex items-center gap-2">
           <UserIcon className="w-5 h-5 text-purple-400" />
-          User Settings
+          Settings
         </h2>
 
         {/* Tabs */}
@@ -129,13 +154,61 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
             </div>
 
+            {/* Name Editing */}
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-              <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Name</div>
-              <div className="text-white font-medium">{user.name}</div>
+              <div className="flex justify-between items-center mb-1">
+                  <div className="text-xs text-slate-400 uppercase tracking-wider">Name</div>
+                  <button 
+                    onClick={() => {
+                        if(isEditing) handleSaveProfile();
+                        else setIsEditing(true);
+                    }}
+                    className="text-purple-400 hover:text-purple-300 text-xs flex items-center gap-1"
+                  >
+                      {isEditing ? <><Save className="w-3 h-3" /> Save</> : <><Edit2 className="w-3 h-3" /> Edit</>}
+                  </button>
+              </div>
+              {isEditing ? (
+                  <input 
+                    type="text" 
+                    value={editName} 
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white focus:border-purple-500 outline-none"
+                  />
+              ) : (
+                  <div className="text-white font-medium">{user.name}</div>
+              )}
             </div>
+            
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
               <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Email</div>
               <div className="text-white font-medium">{user.email}</div>
+            </div>
+
+            {/* Language Selector */}
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+               <div className="flex items-center gap-2 mb-2">
+                   <Globe className="w-4 h-4 text-purple-400" />
+                   <div className="text-xs text-slate-400 uppercase tracking-wider">Preferred Language</div>
+               </div>
+               <div className="grid grid-cols-2 gap-2 mt-2">
+                   {Object.values(Language).map(lang => (
+                       <button
+                           key={lang}
+                           onClick={() => {
+                               onLanguageChange(lang);
+                               setMessage({ type: 'success', text: `Language set to ${lang}` });
+                           }}
+                           className={`text-xs py-2 px-3 rounded-lg border transition-all ${
+                               currentLanguage === lang 
+                               ? 'bg-purple-900/50 border-purple-500 text-white' 
+                               : 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-600'
+                           }`}
+                       >
+                           {lang}
+                       </button>
+                   ))}
+               </div>
             </div>
 
             {message && message.type === 'success' && (
@@ -150,7 +223,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 onClick={handleClearMemory}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800/30 text-slate-300 hover:bg-slate-800 transition-colors"
               >
-                <span className="flex items-center gap-2"><Eraser className="w-4 h-4" /> Clear Conversation Memory</span>
+                <span className="flex items-center gap-2"><Eraser className="w-4 h-4" /> Clear Memory</span>
               </button>
 
               <button 

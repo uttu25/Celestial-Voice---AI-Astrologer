@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Crown, Star, CheckCircle, Loader } from 'lucide-react';
 
+// For Capacitor (Native Mobile), you would import Purchases
+// import { Purchases } from '@revenuecat/purchases-capacitor';
+
 interface SubscriptionModalProps {
   onSubscribe: () => void;
   onClose: () => void;
@@ -9,13 +12,40 @@ interface SubscriptionModalProps {
 const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ onSubscribe, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubscribeClick = () => {
+  const handleSubscribeClick = async () => {
     setIsLoading(true);
-    // Simulate payment processing delay
-    setTimeout(() => {
-      setIsLoading(false);
-      onSubscribe();
-    }, 2000);
+    
+    try {
+        /**
+         * REVENUECAT INTEGRATION GUIDE:
+         * 
+         * 1. Install Plugin: npm install @revenuecat/purchases-capacitor
+         * 2. Initialize in App.tsx: await Purchases.configure({ apiKey: "YOUR_REVENUECAT_KEY" });
+         * 3. Implementation here:
+         * 
+         * const offerings = await Purchases.getOfferings();
+         * if (offerings.current !== null && offerings.current.availablePackages.length !== 0) {
+         *    const package = offerings.current.availablePackages[0];
+         *    const { customerInfo } = await Purchases.purchasePackage(package);
+         *    if (customerInfo.entitlements.active["pro_access"]) {
+         *       // Success!
+         *       onSubscribe();
+         *    }
+         * }
+         */
+
+        // SIMULATION FOR WEB DEMO:
+        // Since we are running on the web, we simulate the payment delay and assume success.
+        // In a real web app, you would redirect to Stripe Checkout here.
+        
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        onSubscribe(); // This triggers the Firestore update in App.tsx
+
+    } catch (e) {
+        console.error("Purchase failed", e);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (

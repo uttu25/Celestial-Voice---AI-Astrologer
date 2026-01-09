@@ -5,7 +5,11 @@ export enum Language {
   Telugu = 'Telugu',
   Marathi = 'Marathi',
   Tamil = 'Tamil',
-  Bangla = 'Bangla'
+  Bangla = 'Bangla',
+  Kannada = 'Kannada',
+  Malayalam = 'Malayalam',
+  Punjabi = 'Punjabi',
+  Odia = 'Odia'
 }
 
 export interface User {

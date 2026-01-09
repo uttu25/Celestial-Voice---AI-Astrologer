@@ -1,62 +1,71 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Sparkles, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
+import { Sparkles, Mail, Lock, User as UserIcon, ArrowRight, Loader, Ghost } from 'lucide-react';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db, isFirebaseConfigured } from '../firebaseConfig';
 
 interface AuthModalProps {
   onLogin: (user: User) => void;
+  onGuestLogin: () => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onGuestLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
 
-    // Simple validation
-    if (!email || !password || (!isLogin && !name)) {
-      setError("Please fill in all fields");
-      return;
+    if (!isFirebaseConfigured()) {
+        setError("Firebase is not configured. Use Guest Mode to test.");
+        setIsLoading(false);
+        return;
     }
 
-    const storedUsersStr = localStorage.getItem('celestial_users');
-    const users: User[] = storedUsersStr ? JSON.parse(storedUsersStr) : [];
-
-    if (isLogin) {
-      const user = users.find(u => u.email === email && u.password === password);
-      if (user) {
-        // Migration for old users who might not have chatCount/isPremium
-        const updatedUser = {
-          ...user,
-          chatCount: user.chatCount ?? 0,
-          isPremium: user.isPremium ?? false
-        };
-        localStorage.setItem('celestial_currentUser', JSON.stringify(updatedUser));
-        onLogin(updatedUser);
+    try {
+      if (isLogin) {
+        // Firebase Login
+        await signInWithEmailAndPassword(auth, email, password);
       } else {
-        setError("Invalid email or password");
+        // Firebase Registration
+        if (!name) {
+             throw new Error("Name is required");
+        }
+        
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Update Auth Profile
+        await updateProfile(user, { displayName: name });
+
+        // Create User Document in Firestore
+        const newUser: User = {
+            id: user.uid,
+            name: name,
+            email: email,
+            password: '', // Don't save password in DB
+            chatCount: 0,
+            isPremium: false
+        };
+
+        await setDoc(doc(db, "users", user.uid), newUser);
       }
-    } else {
-      if (users.find(u => u.email === email)) {
-        setError("User already exists");
-        return;
-      }
-      const newUser: User = {
-        id: Date.now().toString(),
-        name,
-        email,
-        password,
-        chatCount: 0,
-        isPremium: false
-      };
-      users.push(newUser);
-      localStorage.setItem('celestial_users', JSON.stringify(users));
-      localStorage.setItem('celestial_currentUser', JSON.stringify(newUser));
-      onLogin(newUser);
+    } catch (err: any) {
+      console.error(err);
+      let msg = "An error occurred";
+      if (err.code === 'auth/invalid-credential') msg = "Invalid email or password.";
+      if (err.code === 'auth/email-already-in-use') msg = "Email already in use.";
+      if (err.code === 'auth/weak-password') msg = "Password should be at least 6 characters.";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -123,12 +132,33 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] transition-all duration-300 flex items-center justify-center gap-2 group"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <span>{isLogin ? 'Enter' : 'Create Account'}</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {isLoading ? (
+                  <Loader className="w-5 h-5 animate-spin" />
+              ) : (
+                  <>
+                    <span>{isLogin ? 'Enter' : 'Create Account'}</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </>
+              )}
             </button>
           </form>
+
+          <div className="my-6 flex items-center gap-4">
+              <div className="h-px bg-slate-700 flex-1"></div>
+              <span className="text-slate-500 text-xs">OR</span>
+              <div className="h-px bg-slate-700 flex-1"></div>
+          </div>
+
+          <button 
+            onClick={onGuestLogin}
+            className="w-full border border-slate-600 hover:bg-slate-800 text-slate-300 font-medium py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            <Ghost className="w-4 h-4" />
+            Continue as Guest
+          </button>
 
           <div className="mt-6 text-center">
             <button
