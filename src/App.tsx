@@ -13,6 +13,9 @@ import ProfileModal from './components/ProfileModal';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  // NEW: Track if we have finished checking for a session
+  const [authChecked, setAuthChecked] = useState(false);
+  
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
@@ -45,14 +48,15 @@ const App: React.FC = () => {
   const currentOutputTranscription = useRef('');
 
   useEffect(() => {
-    // FIX: Use import.meta.env ONLY to prevent Android crash
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
-    if (!apiKey || apiKey.length < 10) {
-        console.error("API Key missing. Check vite.config.ts define block.");
-        setError("Service unavailable. Please contact support.");
-    }
+    // 1. SAFETY TIMEOUT: If loading takes too long (e.g. 2 seconds), force the login screen to appear
+    const safetyTimer = setTimeout(() => {
+        if (!authChecked && !user) {
+            console.log("Force showing login...");
+            setAuthChecked(true);
+        }
+    }, 2000);
 
+    // 2. Load User
     const initSession = async () => {
         try {
             const currentUser = await api.getCurrentSession();
@@ -61,10 +65,15 @@ const App: React.FC = () => {
             }
         } catch (err) {
             console.error("Failed to restore session", err);
+        } finally {
+            // Mark auth check as done so the loading spinner goes away
+            setAuthChecked(true);
+            clearTimeout(safetyTimer);
         }
     };
     initSession();
 
+    // 3. Particles
     const newParticles = Array.from({ length: 40 }).map(() => ({
         x: Math.random() * 100,
         y: Math.random() * 100,
@@ -73,6 +82,8 @@ const App: React.FC = () => {
         delay: Math.random() * 5
     }));
     setParticles(newParticles);
+    
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   const generateCallSummary = async (transcript: string) => {
@@ -446,10 +457,23 @@ const App: React.FC = () => {
       );
   }
 
+  // --- SAFE MODE RENDERING ---
+  // If we haven't finished checking auth and user is missing, show Loading
+  if (!authChecked && !user) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+            <p className="ml-4 text-white font-serif">Aligning Stars...</p>
+        </div>
+      );
+  }
+
+  // If Auth check is DONE, but user is still null, show Login
   if (!user) {
     return <AuthModal onLogin={setUser} />;
   }
 
+  // Main UI
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-6 relative overflow-hidden font-sans">
       
