@@ -2,30 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Styles moved from index.html */
 body {
+  margin: 0;
+  padding: 0;
   font-family: 'Inter', sans-serif;
   background-color: #050510;
   color: #e2e8f0;
-  overscroll-behavior-y: none;
-}
-
-h1, h2, h3, .font-serif {
-  font-family: 'Cinzel', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .star-bg {
-  background-image: radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
-  radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
-  radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px);
+  background-image: 
+    radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+    radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
+    radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px);
   background-size: 550px 550px, 350px 350px, 250px 250px;
   background-position: 0 0, 40px 60px, 130px 270px;
+  animation: starMove 200s linear infinite;
 }
 
-/* Glass panel utility */
-.glass-panel {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+@keyframes starMove {
+  from { background-position: 0 0, 40px 60px, 130px 270px; }
+  to { background-position: 0 1000px, 40px 1060px, 130px 1270px; }
 }
