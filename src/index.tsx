@@ -1,16 +1,26 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css'; // CHANGED: Import the styles
+import './index.css';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+// 1. debug check
+try {
+  console.log("Attempting to mount React...");
+  // Use a small timeout to ensure the WebView is ready
+  setTimeout(() => {
+     const rootElement = document.getElementById('root');
+     if (!rootElement) {
+       alert("CRITICAL: Root element missing!");
+       return;
+     }
+     
+     const root = ReactDOM.createRoot(rootElement);
+     root.render(
+       <React.StrictMode>
+         <App />
+       </React.StrictMode>
+     );
+  }, 100);
+} catch (e: any) {
+  alert("Startup Crash: " + e.message);
 }
-
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
