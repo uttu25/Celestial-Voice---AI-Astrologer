@@ -4,7 +4,7 @@ import { Mic, MicOff, Volume2, Sparkles, AlertCircle, Settings as SettingsIcon, 
 import { Language, ASTROLOGER_PROMPT, User } from './types';
 import { createPcmBlob, base64ToUint8Array, decodeAudioData } from './utils/audio';
 // CHANGED: Import api instead of storage
-import { api } from './utils/api'; 
+import { api } from './api'; 
 import CrystalBall from './components/CrystalBall';
 import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
