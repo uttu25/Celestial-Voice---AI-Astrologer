@@ -3,7 +3,9 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
+    // Load env file based on `mode` in the current working directory.
     const env = loadEnv(mode, process.cwd(), '');
+
     return {
       base: './', 
       server: {
@@ -12,10 +14,8 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        // Fix: Simply map the env var to the VITE_ one used in the code
+        // ONLY expose the API Key. Do NOT overwrite process.env here.
         'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY),
-        // Fix: Prevent crash if any library tries to access process.env
-        'process.env': {} 
       },
       resolve: {
         alias: {
