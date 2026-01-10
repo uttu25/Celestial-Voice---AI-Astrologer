@@ -3,91 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Celestial Voice Debugger</title>
+    <meta name="theme-color" content="#050510" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Celestial Voice AI</title>
     
-    <style>
-      /* Ensure the debug layer is always on top */
-      #diagnostics {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        color: #00ff00;
-        font-family: monospace;
-        padding: 20px;
-        z-index: 99999;
-        overflow-y: auto;
-        pointer-events: none; /* Let clicks pass through if hidden */
-      }
-      .log-line { margin-bottom: 5px; border-bottom: 1px solid #333; }
-      .error { color: #ff4444; font-weight: bold; font-size: 1.2em; }
-      .success { color: #44ff44; }
-    </style>
+    <link rel="manifest" href="/manifest.json"> 
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2647/2647287.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
     <script>
-      // --- CRITICAL ERROR TRAPPING ---
-      window.logToScreen = function(msg, type = 'info') {
-        const el = document.getElementById('diagnostics-logs');
-        if (el) {
-          const div = document.createElement('div');
-          div.className = 'log-line ' + type;
-          div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-          el.appendChild(div);
-        }
-        console.log(msg);
-      };
+      // Force 'process' to exist to prevent Node.js related crashes in some libraries
+      window.process = { env: { NODE_ENV: 'production' } };
 
+      // 1. CATCH GLOBAL CRASHES (Syntax errors, bad imports)
       window.onerror = function(msg, url, line, col, error) {
-        window.logToScreen(`CRITICAL ERROR: ${msg}\nLine: ${line}`, 'error');
-        // Keep the debug screen visible if there is an error
-        document.getElementById('diagnostics').style.display = 'block';
+        var div = document.createElement("div");
+        div.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:red; z-index:99999; padding:20px; overflow:scroll; font-family:monospace; font-size:16px; border: 5px solid red;";
+        div.innerHTML = "<h1>❌ CRITICAL ERROR</h1><p style='font-size: 1.2em'>" + msg + "</p><p>Location: " + url + ":" + line + "</p>";
+        document.body.appendChild(div);
+        return false;
       };
 
+      // 2. CATCH PROMISE FAILURES (Async errors)
       window.addEventListener('unhandledrejection', function(event) {
-        window.logToScreen(`PROMISE REJECTION: ${event.reason}`, 'error');
+        var div = document.createElement("div");
+        div.style.cssText = "position:fixed; bottom:0; left:0; width:100%; height:50%; background:rgba(50,0,0,0.95); color:yellow; z-index:99999; padding:20px; overflow:scroll; border-top: 4px solid yellow;";
+        div.innerHTML = "<h3>⚠️ PROMISE ERROR</h3><p>" + event.reason + "</p>";
+        document.body.appendChild(div);
       });
     </script>
   </head>
   
-  <body class="star-bg min-h-screen overflow-hidden">
+  <body style="background-color: red !important; color: white; overflow: hidden;">
     
-    <div id="diagnostics">
-      <h2 style="color:white; border-bottom: 2px solid white; padding-bottom: 10px;">
-        🚀 APP STATUS: <span id="app-status">INITIALIZING</span>
-      </h2>
-      <p>If you can read this, HTML loaded successfully.</p>
-      <div id="diagnostics-logs"></div>
+    <div style="text-align: center; padding-top: 50px;">
+        <h1>DIAGNOSTIC MODE</h1>
+        <p>If the background is RED, the update worked.</p>
+        <p>Waiting for React...</p>
     </div>
 
     <div id="root"></div>
-
-    <script>
-      window.logToScreen("HTML Body Loaded.");
-      window.logToScreen("Waiting for React (src/index.tsx)...");
-      
-      // Auto-hide debug layer if React loads successfully
-      setTimeout(() => {
-        const root = document.getElementById('root');
-        if (root && root.childElementCount > 0) {
-           window.logToScreen("React Mounted Successfully! Hiding debug layer...", 'success');
-           document.getElementById('app-status').innerText = "RUNNING";
-           document.getElementById('app-status').className = "success";
-           
-           // Hide after 2 seconds so you can see the success message
-           setTimeout(() => {
-             document.getElementById('diagnostics').style.opacity = '0';
-             setTimeout(() => { document.getElementById('diagnostics').style.display = 'none'; }, 1000);
-           }, 1500);
-        } else {
-           window.logToScreen("React took too long to mount. Check logs above.", 'error');
-           document.getElementById('app-status').innerText = "STALLED";
-           document.getElementById('app-status').style.color = "red";
-        }
-      }, 3000); // Wait 3 seconds for React
-    </script>
-
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
