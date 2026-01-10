@@ -1,24 +1,15 @@
 {
   "appId": "com.celestialvoice.app",
-  "appName": "Celestial Voice",
+  "appName": "Celestial Voice AI",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 2000,
-      "backgroundColor": "#050510",
-      "showSpinner": false,
-      "androidScaleType": "CENTER_CROP",
-      "splashFullScreen": true,
-      "splashImmersive": true
-    },
-    "Keyboard": {
-      "resize": "body",
-      "style": "dark",
-      "resizeOnFullScreen": true
+      "launchShowDuration": 0
     }
   }
 }
