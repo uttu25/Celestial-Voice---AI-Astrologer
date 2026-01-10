@@ -13,11 +13,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
 
     <script>
-      window.process = {
-        env: {
-          NODE_ENV: 'production'
-        }
+      // Force 'process' to exist to prevent Node.js related crashes
+      window.process = { env: { NODE_ENV: 'production' } };
+
+      // Catch startup errors
+      window.onerror = function(msg, url, line, col, error) {
+        // Create an overlay to show the error
+        var div = document.createElement("div");
+        div.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:red; z-index:99999; padding:20px; overflow:scroll; font-family:monospace; font-size:14px;";
+        div.innerHTML = "<h3>CRITICAL ERROR</h3><p>" + msg + "</p><p>Location: " + url + ":" + line + "</p>";
+        document.body.appendChild(div);
+        return false;
       };
+
+      // Catch Promise errors (like API failures)
+      window.addEventListener('unhandledrejection', function(event) {
+        var div = document.createElement("div");
+        div.style.cssText = "position:fixed; bottom:0; left:0; width:100%; height:50%; background:rgba(50,0,0,0.9); color:yellow; z-index:99999; padding:20px; overflow:scroll;";
+        div.innerHTML = "<h3>PROMISE ERROR</h3><p>" + event.reason + "</p>";
+        document.body.appendChild(div);
+      });
     </script>
   </head>
   <body class="star-bg min-h-screen overflow-hidden selection:bg-purple-500 selection:text-white">
