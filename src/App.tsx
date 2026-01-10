@@ -3,7 +3,6 @@ import { GoogleGenAI, LiveServerMessage, Modality, HarmCategory, HarmBlockThresh
 import { Mic, MicOff, Volume2, Sparkles, AlertCircle, Settings as SettingsIcon, PhoneOff, User as UserIcon, Menu } from 'lucide-react';
 import { Language, ASTROLOGER_PROMPT, User } from './types';
 import { createPcmBlob, base64ToUint8Array, decodeAudioData } from './utils/audio';
-// CHANGED: Import api instead of storage
 import { api } from './api'; 
 import CrystalBall from './components/CrystalBall';
 import AuthModal from './components/AuthModal';
@@ -24,16 +23,13 @@ const App: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [interruptionFeedback, setInterruptionFeedback] = useState(false);
   
-  // Sparkle Particles
   const [particles, setParticles] = useState<Array<{x: number, y: number, size: number, duration: number, delay: number}>>([]);
   
-  // Summary State
   const [showSummary, setShowSummary] = useState(false);
   const [summaryContent, setSummaryContent] = useState('');
   const [transcriptContent, setTranscriptContent] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   
-  // Refs
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -48,19 +44,15 @@ const App: React.FC = () => {
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
 
-  // ----------------------------------------------------------------------
-  // INITIALIZATION
-  // ----------------------------------------------------------------------
   useEffect(() => {
-    // 1. Check API Key (Uses import.meta.env safely)
+    // FIX: Use import.meta.env ONLY to prevent Android crash
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     
     if (!apiKey || apiKey.length < 10) {
-        console.error("API Key missing. Check .env file.");
+        console.error("API Key missing. Check vite.config.ts define block.");
         setError("Service unavailable. Please contact support.");
     }
 
-    // 2. Load User from Supabase (CHANGED: Replaces storage.getUser)
     const initSession = async () => {
         try {
             const currentUser = await api.getCurrentSession();
@@ -73,20 +65,15 @@ const App: React.FC = () => {
     };
     initSession();
 
-    // 3. Init Particles
     const newParticles = Array.from({ length: 40 }).map(() => ({
         x: Math.random() * 100,
         y: Math.random() * 100,
         size: Math.random() * 3 + 1,
-        duration: Math.random() * 3 + 2, // 2-5s
+        duration: Math.random() * 3 + 2, 
         delay: Math.random() * 5
     }));
     setParticles(newParticles);
   }, []);
-
-  // ----------------------------------------------------------------------
-  // LOGIC
-  // ----------------------------------------------------------------------
 
   const generateCallSummary = async (transcript: string) => {
     setTranscriptContent(transcript);
@@ -145,10 +132,9 @@ const App: React.FC = () => {
         const generatedText = response.text || "The stars are silent. No summary could be generated.";
         setSummaryContent(generatedText);
 
-        // CHANGED: Save to Supabase (Replaces storage.saveChat)
         if (user) {
             await api.saveChat(user.id, {
-                id: '', // Database generates ID
+                id: '', 
                 transcript,
                 summary: generatedText,
                 timestamp: new Date().toISOString(),
@@ -159,11 +145,9 @@ const App: React.FC = () => {
     } catch (e: any) {
         console.error("Summary generation failed");
         let errorMsg = "Failed to consult the archives of fate.";
-        
         if (e.message && e.message.includes("404")) {
             errorMsg = "Service Temporarily Unavailable.";
         }
-        
         setSummaryContent(errorMsg + "\n\n(You can still view the full transcript in the 'Transcript' tab)");
     } finally {
         setIsGeneratingSummary(false);
@@ -242,7 +226,6 @@ const App: React.FC = () => {
 
   const handleSubscribe = async () => {
     if (user) {
-        // CHANGED: Update via Supabase API (Replaces storage.updateUserFields)
         try {
             const updated = await api.updateUser(user.id, { isPremium: true });
             if (updated) setUser(updated);
@@ -271,16 +254,14 @@ const App: React.FC = () => {
         return;
     }
 
-    // Get API Key safely
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-        setError("System configuration missing.");
+        setError("System configuration missing. API Key not found.");
         return;
     }
 
     if (!user) return;
 
-    // Use current user state for check
     if (user && !user.isPremium && (user.chatCount ?? 0) >= 3) {
         setShowSubscription(true);
         return;
@@ -334,11 +315,10 @@ const App: React.FC = () => {
       const sessionPromise = ai.live.connect({
         ...config,
         callbacks: {
-          onopen: async () => { // CHANGED: Added async
+          onopen: async () => {
              console.log("Gemini Connected");
              setIsConnected(true);
              
-             // CHANGED: Increment Chat Count via Supabase
              if (user && !user.isPremium) {
                  const newCount = (user.chatCount || 0) + 1;
                  try {
@@ -434,19 +414,11 @@ const App: React.FC = () => {
             console.error("Gemini Error:", err);
             
             let errorMessage = "Connection to the stars was lost. ";
-            
             if (err instanceof Error) {
                 errorMessage += err.message;
-            } else if (typeof err === 'object' && err !== null) {
-                if (err.type === 'error' && err.target instanceof WebSocket) {
-                   errorMessage += "Connection failed. Please check your network.";
-                } else {
-                   errorMessage += "An unknown error occurred.";
-                }
             } else {
                 errorMessage += "Unknown Error.";
             }
-            
             setError(errorMessage);
             cleanup(false);
           }
@@ -481,7 +453,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-6 relative overflow-hidden font-sans">
       
-      {/* Floating Particles/Stars */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           {particles.map((p, i) => (
               <div 
@@ -500,11 +471,9 @@ const App: React.FC = () => {
           ))}
       </div>
 
-      {/* Ambient Background Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/30 rounded-full blur-[100px] animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-900/30 rounded-full blur-[100px] animate-pulse delay-700"></div>
 
-      {/* Header / Top Bar */}
       <div className="w-full max-w-lg flex justify-between items-center z-20 animate-slide-up">
         <button 
             onClick={() => setShowProfile(true)}
@@ -543,7 +512,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 w-full max-w-lg flex flex-col justify-center items-center relative z-10">
         
         {!isConnected && (
@@ -643,7 +611,6 @@ const App: React.FC = () => {
                     
                     <div className="relative bg-[#090A0F] rounded-full p-1 border border-white/10 shadow-2xl">
                          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-900/80 to-slate-900 flex items-center justify-center border border-white/10 group-hover:border-purple-500/50 transition-colors duration-500 overflow-hidden relative">
-                             {/* Inner glow */}
                              <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                              
                              <Sparkles className="w-8 h-8 text-purple-200 group-hover:scale-110 group-hover:text-white transition-transform duration-500 relative z-10" />
@@ -654,7 +621,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* MODALS */}
       {showProfile && user && (
           <ProfileModal 
             user={user} 
@@ -675,7 +641,6 @@ const App: React.FC = () => {
             user={user} 
             currentLanguage={selectedLanguage}
             onClose={() => setShowSettings(false)} 
-            // CHANGED: Logout via Supabase
             onLogout={async () => {
                 await api.logout();
                 setUser(null);
