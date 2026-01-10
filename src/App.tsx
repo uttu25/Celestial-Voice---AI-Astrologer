@@ -52,9 +52,11 @@ const App: React.FC = () => {
   // INITIALIZATION
   // ----------------------------------------------------------------------
   useEffect(() => {
-    // 1. Check API Key (Supports both Vite env and standard env)
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+    // 1. Check API Key (Uses import.meta.env safely)
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
     if (!apiKey || apiKey.length < 10) {
+        console.error("API Key missing. Check .env file.");
         setError("Service unavailable. Please contact support.");
     }
 
@@ -98,7 +100,7 @@ const App: React.FC = () => {
     setIsGeneratingSummary(true);
 
     try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
         if (!apiKey) {
             throw new Error("System error. Cannot generate summary.");
         }
@@ -269,8 +271,8 @@ const App: React.FC = () => {
         return;
     }
 
-    // Get API Key
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+    // Get API Key safely
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
         setError("System configuration missing.");
         return;
