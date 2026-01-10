@@ -1,0 +1,8 @@
+{
+  "appId": "com.celestialvoice.app",
+  "appName": "Celestial Voice",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
