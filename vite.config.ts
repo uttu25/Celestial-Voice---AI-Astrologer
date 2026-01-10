@@ -1,24 +1,16 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // THIS LINE IS CRITICAL FOR ANDROID:
+  base: './', 
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
   },
   server: {
     port: 3000,
-  },
-  optimizeDeps: {
-    exclude: ['@google/genai'],
-  },
-})
+  }
+});
