@@ -1,5 +1,5 @@
-import { supabase } from '../supabaseClient';
-import { User, ChatRecord } from '../types';
+import { supabase } from './supabaseClient';
+import { User, ChatRecord } from './types';
 
 export const api = {
   // --- AUTH ---
