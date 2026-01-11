@@ -19,8 +19,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
     e.preventDefault();
     setErrorMsg('');
 
+    // Validation
     if (!email || !password) {
       setErrorMsg('Please enter both email and password.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (isSignUp && !name) {
+      setErrorMsg('Please enter your name.');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMsg('Please enter a valid email address.');
       return;
     }
 
@@ -30,31 +48,53 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
         
         if (isSignUp) {
            // REAL SIGN UP
-           if (!name) {
-             setErrorMsg('Please enter your name.');
-             setLoading(false);
-             return;
-           }
-           user = await api.register({ email, password, name });
+           user = await api.register({ email: email.trim(), password, name: name.trim() });
         } else {
            // REAL LOGIN
-           user = await api.login({ email, password });
+           user = await api.login({ email: email.trim(), password });
         }
 
         if (user) {
             onLogin(user);
         } else {
-            setErrorMsg('Invalid credentials. Please try again.');
+            setErrorMsg('Authentication failed. Please try again.');
         }
 
     } catch (error: any) {
         console.error("Auth Error:", error);
-        // Clean error message for user
-        const msg = error.message || "Authentication failed. Please check your connection.";
+        
+        // Handle specific error messages
+        let msg = 'Authentication failed. Please try again.';
+        
+        if (error.message) {
+          // Clean up error messages for better UX
+          if (error.message.includes('already registered')) {
+            msg = 'This email is already registered. Please sign in instead.';
+          } else if (error.message.includes('Invalid login credentials')) {
+            msg = 'Invalid email or password. Please check and try again.';
+          } else if (error.message.includes('Email not confirmed')) {
+            msg = 'Please verify your email before signing in.';
+          } else if (error.message.includes('network')) {
+            msg = 'Network error. Please check your connection and try again.';
+          } else if (error.message.includes('timeout')) {
+            msg = 'Request timeout. Please try again.';
+          } else {
+            msg = error.message;
+          }
+        }
+        
         setErrorMsg(msg);
     } finally {
         setLoading(false);
     }
+  };
+
+  const handleModeSwitch = () => {
+    setIsSignUp(!isSignUp);
+    setErrorMsg('');
+    setEmail('');
+    setPassword('');
+    setName('');
   };
 
   return (
@@ -84,8 +124,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
 
             {/* Error Message Display */}
             {errorMsg && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-200">
-                <AlertCircle className="h-4 w-4" />
+              <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-200 text-left">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
@@ -100,6 +140,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                           onChange={(e) => setName(e.target.value)} 
                           placeholder="Your Name" 
                           className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pl-11 pr-4 text-white placeholder-white/20 outline-none backdrop-blur-md transition-all focus:border-purple-500/50 focus:bg-white/5 focus:ring-1 focus:ring-purple-500/20" 
+                          disabled={loading}
                         />
                     </div>
                 )}
@@ -111,7 +152,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                       value={email} 
                       onChange={(e) => setEmail(e.target.value)} 
                       placeholder="Email Address" 
+                      autoComplete="email"
                       className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pl-11 pr-4 text-white placeholder-white/20 outline-none backdrop-blur-md transition-all focus:border-purple-500/50 focus:bg-white/5 focus:ring-1 focus:ring-purple-500/20" 
+                      disabled={loading}
                     />
                 </div>
                 
@@ -121,8 +164,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                       type="password" 
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)} 
-                      placeholder="Password" 
+                      placeholder="Password (min. 6 characters)" 
+                      autoComplete={isSignUp ? "new-password" : "current-password"}
                       className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pl-11 pr-4 text-white placeholder-white/20 outline-none backdrop-blur-md transition-all focus:border-purple-500/50 focus:bg-white/5 focus:ring-1 focus:ring-purple-500/20" 
+                      disabled={loading}
                     />
                 </div>
 
@@ -132,14 +177,27 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin }) => {
                   className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 py-3.5 text-white shadow-lg transition-transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed hover:shadow-purple-500/25"
                 >
                     <span className="relative flex items-center justify-center gap-2 font-medium tracking-wide">
-                        {loading ? 'Connecting to Stars...' : (isSignUp ? 'Create Account' : 'Enter the Void')} 
-                        {!loading && <ArrowRight className="h-4 w-4" />}
+                        {loading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Connecting...
+                          </>
+                        ) : (
+                          <>
+                            {isSignUp ? 'Create Account' : 'Enter the Void'}
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
                     </span>
                 </button>
             </form>
 
             <div className="mt-8">
-                <button onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(''); }} className="text-xs uppercase tracking-widest text-purple-300/60 hover:text-purple-300 transition-colors hover:underline underline-offset-4">
+                <button 
+                  onClick={handleModeSwitch} 
+                  className="text-xs uppercase tracking-widest text-purple-300/60 hover:text-purple-300 transition-colors hover:underline underline-offset-4"
+                  disabled={loading}
+                >
                     {isSignUp ? 'Already have an account? Sign In' : 'New User? Create Account'}
                 </button>
             </div>
