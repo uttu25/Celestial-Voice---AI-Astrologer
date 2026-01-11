@@ -1,23 +1,17 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
 
-// 1. Read keys safely
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// ------------------------------------------------------------------
+// FIX: Hardcoded keys ensure the Android App can connect to the Database
+// ------------------------------------------------------------------
 
-// 2. DEBUGGING: Check if keys exist
-// If they are missing, we ALERT the user on the phone screen
-if (!supabaseUrl || !supabaseAnonKey) {
-    const errorMsg = 'CRITICAL ERROR: API Keys are missing! \n' +
-                     'URL: ' + (supabaseUrl ? 'OK' : 'MISSING') + '\n' +
-                     'KEY: ' + (supabaseAnonKey ? 'OK' : 'MISSING');
-    
-    alert(errorMsg); // This pops up on your phone
-    console.error(errorMsg);
+const supabaseUrl = 'https://wrclowgixhueaeywnlsn.supabase.co';
+
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyY2xvd2dpeGh1ZWFleXdubHNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5ODE5NTUsImV4cCI6MjA4MzU1Nzk1NX0.X16Tm6Hw-v_soSxM7igaD7iKNzu2KhslCY_NYCKxx5Y';
+
+// ------------------------------------------------------------------
+
+if (supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder')) {
+  console.error("CRITICAL: Keys are still missing!");
 }
 
-// 3. Initialize Supabase (even if keys missing, to prevent crash)
-// Note: Requests will fail, but the App UI will at least load!
-export const supabase = createClient(
-    supabaseUrl || 'https://placeholder.supabase.co', 
-    supabaseAnonKey || 'placeholder-key'
-)
+export const supabase = createClient(supabaseUrl, supabaseKey);
