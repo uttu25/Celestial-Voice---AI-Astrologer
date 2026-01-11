@@ -3,6 +3,50 @@ import { User, ChatRecord } from './types';
 
 export const api = {
   // --- AUTH ---
+  createUser: async ({ name }: any) => {
+    // Generate a temporary email since we don't have user input
+    const tempEmail = `user_${Date.now()}@celestialvoice.local`;
+    const tempPassword = Math.random().toString(36).slice(-12); // Random password
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: tempEmail,
+        password: tempPassword,
+        options: { data: { full_name: name } },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Insert user profile into database
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            full_name: name,
+            email: tempEmail,
+            chat_count: 0,
+            is_premium: false,
+          });
+
+        if (insertError) throw insertError;
+
+        return {
+          id: data.user.id,
+          email: tempEmail,
+          name,
+          chatCount: 0,
+          isPremium: false,
+          password: '',
+        } as User;
+      }
+      return null;
+    } catch (err: any) {
+      console.error('Create user failed:', err);
+      throw err;
+    }
+  },
+
   register: async ({ email, password, name }: any) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -10,7 +54,19 @@ export const api = {
       options: { data: { full_name: name } },
     });
     if (error) throw error;
-    if (data.user) return { id: data.user.id, email, name, chatCount: 0, isPremium: false };
+    if (data.user) {
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          full_name: name,
+          email,
+          chat_count: 0,
+          is_premium: false,
+        });
+      if (insertError) throw insertError;
+      return { id: data.user.id, email, name, chatCount: 0, isPremium: false, password: '' };
+    }
     return null;
   },
 
@@ -41,12 +97,12 @@ export const api = {
     
     if (error) throw error;
     return {
-        id: data.id,
-        name: data.full_name,
-        email: data.email,
-        chatCount: data.chat_count,
-        isPremium: data.is_premium, // <--- IMPORTANT: Keeps your payment status
-        password: '' 
+      id: data.id,
+      name: data.full_name,
+      email: data.email,
+      chatCount: data.chat_count,
+      isPremium: data.is_premium,
+      password: '',
     } as User;
   },
 
@@ -69,22 +125,22 @@ export const api = {
   // --- CHAT HISTORY ---
   saveChat: async (userId: string, record: ChatRecord) => {
     await supabase.from('chat_history').insert({
-        user_id: userId,
-        transcript: record.transcript,
-        summary: record.summary,
-        timestamp: record.timestamp,
-        language: record.language
+      user_id: userId,
+      transcript: record.transcript,
+      summary: record.summary,
+      timestamp: record.timestamp,
+      language: record.language,
     });
   },
 
   getHistory: async () => {
     const { data } = await supabase.from('chat_history').select('*').order('created_at', { ascending: true });
     return (data || []).map((row: any) => ({
-        id: row.id,
-        transcript: row.transcript,
-        summary: row.summary,
-        timestamp: row.timestamp,
-        language: row.language
+      id: row.id,
+      transcript: row.transcript,
+      summary: row.summary,
+      timestamp: row.timestamp,
+      language: row.language,
     }));
-  }
+  },
 };
