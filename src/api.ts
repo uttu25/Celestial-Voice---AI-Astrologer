@@ -2,79 +2,70 @@ import { supabase } from './supabaseClient';
 import { User, ChatRecord } from './types';
 
 export const api = {
-  // --- AUTH ---
-  createUser: async ({ name }: any) => {
-    // Generate a temporary email since we don't have user input
-    const tempEmail = `user_${Date.now()}@celestialvoice.local`;
-    const tempPassword = Math.random().toString(36).slice(-12); // Random password
+  // --- REAL AUTHENTICATION ---
 
+  // 1. Sign Up (Real User Registration)
+  register: async ({ email, password, name }: any) => {
     try {
+      // Create user in Supabase Auth
       const { data, error } = await supabase.auth.signUp({
-        email: tempEmail,
-        password: tempPassword,
+        email,
+        password,
         options: { data: { full_name: name } },
       });
 
       if (error) throw error;
 
       if (data.user) {
-        // Insert user profile into database
+        // Create the public profile entry
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
             id: data.user.id,
             full_name: name,
-            email: tempEmail,
+            email: email,
             chat_count: 0,
             is_premium: false,
           });
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          // If profile exists (rare edge case), ignore error
+          if (insertError.code !== '23505') throw insertError;
+        }
 
         return {
           id: data.user.id,
-          email: tempEmail,
+          email,
           name,
           chatCount: 0,
           isPremium: false,
-          password: '',
         } as User;
       }
       return null;
-    } catch (err: any) {
-      console.error('Create user failed:', err);
+    } catch (err) {
+      console.error('Registration failed:', err);
       throw err;
     }
   },
 
-  register: async ({ email, password, name }: any) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    });
-    if (error) throw error;
-    if (data.user) {
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          full_name: name,
-          email,
-          chat_count: 0,
-          is_premium: false,
-        });
-      if (insertError) throw insertError;
-      return { id: data.user.id, email, name, chatCount: 0, isPremium: false, password: '' };
-    }
-    return null;
-  },
-
+  // 2. Login (Real Password Check)
   login: async ({ email, password }: any) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    if (data.user) return await api.getUserProfile(data.user.id);
-    return null;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      
+      if (data.user) {
+        return await api.getUserProfile(data.user.id);
+      }
+      return null;
+    } catch (err) {
+      console.error('Login failed:', err);
+      throw err;
+    }
   },
 
   logout: async () => {
@@ -83,7 +74,9 @@ export const api = {
 
   getCurrentSession: async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) return await api.getUserProfile(session.user.id);
+    if (session?.user) {
+      return await api.getUserProfile(session.user.id);
+    }
     return null;
   },
 
@@ -95,14 +88,18 @@ export const api = {
       .eq('id', userId)
       .single();
     
-    if (error) throw error;
+    // If profile is missing but auth exists, handle gracefully
+    if (error) {
+      console.warn("Profile fetch error:", error);
+      return null;
+    }
+
     return {
       id: data.id,
       name: data.full_name,
       email: data.email,
       chatCount: data.chat_count,
       isPremium: data.is_premium,
-      password: '',
     } as User;
   },
 
@@ -111,12 +108,10 @@ export const api = {
     if (updates.isPremium !== undefined) dbUpdates.is_premium = updates.isPremium;
     if (updates.chatCount !== undefined) dbUpdates.chat_count = updates.chatCount;
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('profiles')
       .update(dbUpdates)
-      .eq('id', userId)
-      .select()
-      .single();
+      .eq('id', userId);
 
     if (error) throw error;
     return api.getUserProfile(userId);
@@ -134,7 +129,11 @@ export const api = {
   },
 
   getHistory: async () => {
-    const { data } = await supabase.from('chat_history').select('*').order('created_at', { ascending: true });
+    const { data } = await supabase
+      .from('chat_history')
+      .select('*')
+      .order('timestamp', { ascending: true }); // fixed sort column
+    
     return (data || []).map((row: any) => ({
       id: row.id,
       transcript: row.transcript,
